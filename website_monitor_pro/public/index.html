@@ -1,0 +1,95 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Website Monitor Pro</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{font-family:Arial;background:#0f172a;color:white;margin:0}
+header{padding:15px;text-align:center;background:#020617}
+.container{display:flex;justify-content:space-around;padding:20px}
+.column{width:45%}
+.card{background:#020617;margin:10px;padding:10px;border-radius:8px}
+.up{border-left:5px solid #22c55e}
+.down{border-left:5px solid #ef4444}
+input,button{padding:8px;margin:5px}
+canvas{background:white;border-radius:8px}
+</style>
+</head>
+<body>
+<header><h1>🌐 Website Monitor Pro</h1></header>
+
+<div style="text-align:center">
+<input id="urlInput" placeholder="https://example.com">
+<button onclick="checkSite()">Check</button>
+<button onclick="addSite()">Add</button>
+<button onclick="removeSite()">Remove</button>
+<p id="checkResult"></p>
+</div>
+
+<div class="container">
+<div class="column">
+<h2>UP</h2><div id="up"></div>
+</div>
+<div class="column">
+<h2>DOWN</h2><div id="down"></div>
+</div>
+</div>
+
+<div style="padding:20px">
+<h2>Response Time Graph</h2>
+<canvas id="chart" height="100"></canvas>
+<p id="uptime"></p>
+</div>
+
+<script>
+let chart;
+
+async function load(){
+ const res=await fetch("/api/status");
+ const data=await res.json();
+ const up=document.getElementById("up");
+ const down=document.getElementById("down");
+ up.innerHTML="";down.innerHTML="";
+ data.up.forEach(s=>up.innerHTML+=`<div class="card up" onclick="show('${s.url}')">${s.url}</div>`);
+ data.down.forEach(s=>down.innerHTML+=`<div class="card down" onclick="show('${s.url}')">${s.url}</div>`);
+}
+setInterval(load,500); load();
+
+async function show(url){
+ const res=await fetch("/api/all");
+ const sites=await res.json();
+ const s=sites.find(x=>x.url===url);
+ if(!s) return;
+ const labels=s.history.map(h=>new Date(h.t).toLocaleTimeString());
+ const data=s.history.map(h=>h.rt||0);
+ if(chart) chart.destroy();
+ chart=new Chart(document.getElementById("chart"),{
+  type:"line",
+  data:{labels,datasets:[{label:url,data}]}
+ });
+ // uptime 24h
+ const total=s.history.length;
+ const up=s.history.filter(h=>h.status==="up").length;
+ const pct= total? (up/total*100).toFixed(2):0;
+ document.getElementById("uptime").innerText="24h uptime: "+pct+"%";
+}
+
+async function checkSite(){
+ const url=document.getElementById("urlInput").value;
+ const res=await fetch("/api/check?url="+url);
+ const d=await res.json();
+ document.getElementById("checkResult").innerText=JSON.stringify(d);
+}
+async function addSite(){
+ const url=document.getElementById("urlInput").value;
+ await fetch("/api/add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+}
+async function removeSite(){
+ const url=document.getElementById("urlInput").value;
+ await fetch("/api/remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+}
+</script>
+</body>
+</html>

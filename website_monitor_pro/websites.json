@@ -1,0 +1,34 @@
+{
+  "sites": [
+    {
+      "url": "https://google.com",
+      "status": "unknown",
+      "lastResponse": null,
+      "history": []
+    },
+    {
+      "url": "https://openai.com",
+      "status": "unknown",
+      "lastResponse": null,
+      "history": []
+    },
+    {
+      "url": "https://amazon.com",
+      "status": "unknown",
+      "lastResponse": null,
+      "history": []
+    },
+    {
+      "url": "https://github.com",
+      "status": "unknown",
+      "lastResponse": null,
+      "history": []
+    },
+    {
+      "url": "https://cloudflare.com",
+      "status": "unknown",
+      "lastResponse": null,
+      "history": []
+    }
+  ]
+}
