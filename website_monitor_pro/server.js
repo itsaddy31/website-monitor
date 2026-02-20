@@ -1,4 +1,3 @@
-
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
@@ -9,95 +8,111 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ===== CONFIG =====
-const DB_PATH = process.env.DB_PATH || "./websites.json"; // can set to Google Drive mounted path
-const CHECK_INTERVAL = 500;
+const DB_FILE = path.join(__dirname, "db.json");
 
-// ===== DB =====
-function loadDB(){
-  if(!fs.existsSync(DB_PATH)){
-    fs.writeFileSync(DB_PATH, JSON.stringify({sites:[]},null,2));
+// ---------- DB ----------
+function loadDB() {
+  if (!fs.existsSync(DB_FILE)) {
+    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {} }));
   }
-  return JSON.parse(fs.readFileSync(DB_PATH));
+  return JSON.parse(fs.readFileSync(DB_FILE));
 }
-function saveDB(data){
-  fs.writeFileSync(DB_PATH, JSON.stringify(data,null,2));
+function saveDB(db) {
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
-let db = loadDB();
+// ---------- WORLD LATENCY NODES ----------
+const regions = [
+  { name: "India", url: "https://www.google.com" },
+  { name: "US", url: "https://www.cloudflare.com" },
+  { name: "EU", url: "https://www.wikipedia.org" }
+];
 
-// ===== MONITOR =====
-async function checkSite(site){
-  const start = Date.now();
-  try{
-    await axios.get(site.url,{timeout:5000});
-    const rt = Date.now()-start;
-    site.status="up";
-    site.lastResponse=rt;
-    site.history.push({t:Date.now(),rt,status:"up"});
-  }catch{
-    site.status="down";
-    site.lastResponse=null;
-    site.history.push({t:Date.now(),rt:null,status:"down"});
+// ---------- MONITOR ----------
+async function checkSite(site) {
+  try {
+    const start = Date.now();
+    await axios.get(site.url, { timeout: 5000 });
+    site.status = "up";
+    site.rt = Date.now() - start;
+  } catch {
+    site.status = "down";
+    site.rt = null;
   }
-  // keep 24h
-  const cutoff = Date.now()-86400000;
-  site.history = site.history.filter(h=>h.t>cutoff);
+
+  if (!site.history) site.history = [];
+  site.history.push({ t: Date.now(), status: site.status, rt: site.rt });
+  site.history = site.history.slice(-500);
+
+  // SLA %
+  const total = site.history.length;
+  const up = site.history.filter(h => h.status === "up").length;
+  site.sla = total ? ((up / total) * 100).toFixed(2) : 0;
+
+  // incidents
+  site.incidents = site.history
+    .filter(h => h.status === "down")
+    .slice(-20);
 }
 
-setInterval(async ()=>{
-  db = loadDB();
-  for(let s of db.sites){
-    if(!s.history) s.history=[];
-    await checkSite(s);
+// ---------- LOOP ----------
+setInterval(async () => {
+  let db = loadDB();
+
+  for (let user in db.users) {
+    for (let site of db.users[user]) {
+      await checkSite(site);
+    }
   }
+
   saveDB(db);
-},CHECK_INTERVAL);
+}, 3000);
 
-// ===== API =====
-app.get("/api/status",(req,res)=>{
-  db=loadDB();
-  const up=db.sites.filter(s=>s.status==="up").slice(0,5);
-  const down=db.sites.filter(s=>s.status==="down").slice(0,5);
-  res.json({up,down});
-});
+// ---------- WORLD LATENCY ----------
+app.get("/api/latency", async (req, res) => {
+  const results = [];
 
-app.get("/api/all",(req,res)=>{
-  db=loadDB();
-  res.json(db.sites);
-});
-
-app.post("/api/add",(req,res)=>{
-  const {url}=req.body;
-  db=loadDB();
-  if(!db.sites.find(s=>s.url===url)){
-    db.sites.push({url,status:"unknown",lastResponse:null,history:[]});
-    saveDB(db);
+  for (let r of regions) {
+    try {
+      const s = Date.now();
+      await axios.get(r.url, { timeout: 3000 });
+      results.push({ region: r.name, latency: Date.now() - s });
+    } catch {
+      results.push({ region: r.name, latency: null });
+    }
   }
-  res.json({ok:true});
+
+  res.json(results);
 });
 
-app.post("/api/remove",(req,res)=>{
-  const {url}=req.body;
-  db=loadDB();
-  db.sites=db.sites.filter(s=>s.url!==url);
+// ---------- USER SITES ----------
+app.get("/api/:user", (req, res) => {
+  const db = loadDB();
+  res.json(db.users[req.params.user] || []);
+});
+
+app.post("/api/:user/add", (req, res) => {
+  const { url } = req.body;
+  let db = loadDB();
+  if (!db.users[req.params.user]) db.users[req.params.user] = [];
+  db.users[req.params.user].push({ url, status: "unknown", history: [] });
   saveDB(db);
-  res.json({ok:true});
+  res.json({ ok: true });
 });
 
-app.get("/api/check", async(req,res)=>{
-  const url=req.query.url;
-  try{
-    const start=Date.now();
-    await axios.get(url,{timeout:5000});
-    res.json({status:"up",response:Date.now()-start});
-  }catch{
-    res.json({status:"down"});
-  }
+app.post("/api/:user/remove", (req, res) => {
+  const { url } = req.body;
+  let db = loadDB();
+  db.users[req.params.user] = (db.users[req.params.user] || []).filter(
+    s => s.url !== url
+  );
+  saveDB(db);
+  res.json({ ok: true });
 });
 
-app.use(express.static(path.join(__dirname,"public")));
-app.get("*",(req,res)=>res.sendFile(path.join(__dirname,"public/index.html")));
+app.use(express.static(path.join(__dirname, "public")));
+app.get("*", (req, res) =>
+  res.sendFile(path.join(__dirname, "public/index.html"))
+);
 
-const PORT=process.env.PORT||3000;
-app.listen(PORT,()=>console.log("running "+PORT));
+app.listen(process.env.PORT || 3000);
