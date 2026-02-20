@@ -2,131 +2,197 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>AI Website Monitor</title>
+<title>2A’s Monitoring Solution</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-body{margin:0;font-family:Inter,Arial;background:#0b1220;color:white}
-header{padding:15px;background:#111827;font-size:20px}
-.container{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px}
-.card{background:#111827;border-radius:10px;padding:12px;margin:6px}
-.up{border-left:4px solid #22c55e}
-.down{border-left:4px solid #ef4444}
-input,button{padding:8px;border-radius:6px;border:none;margin:4px}
-button{background:#2563eb;color:white}
-.list{max-height:250px;overflow:auto}
-.small{font-size:12px;color:#9ca3af}
-.section{margin:20px}
+body{
+ margin:0;
+ font-family:Inter,Arial;
+ background:#0B1220;
+ color:white;
+ display:flex;
+}
+
+.sidebar{
+ width:230px;
+ background:#111827;
+ height:100vh;
+ padding:20px;
+}
+
+.sidebar h2{
+ margin:0 0 20px 0;
+ font-size:18px;
+}
+
+.menu{
+ margin:12px 0;
+ cursor:pointer;
+ color:#9CA3AF;
+}
+.menu:hover{color:white}
+
+.main{
+ flex:1;
+ padding:20px;
+}
+
+.cards{
+ display:grid;
+ grid-template-columns:repeat(4,1fr);
+ gap:15px;
+ margin-bottom:20px;
+}
+
+.card{
+ background:#111827;
+ border-radius:10px;
+ padding:15px;
+}
+
+.grid{
+ display:grid;
+ grid-template-columns:1fr 1fr;
+ gap:20px;
+}
+
+.status{
+ padding:10px;
+ border-radius:6px;
+ margin:5px 0;
+}
+.up{background:#052e1c;border-left:4px solid #22C55E}
+.down{background:#3b0a0a;border-left:4px solid #EF4444}
+
+.small{color:#9CA3AF;font-size:12px}
+.section{margin-bottom:20px}
+
 </style>
 </head>
+
 <body>
 
-<header>🌍 AI Website Monitor</header>
-
-<div class="section">
-User <input id="user" placeholder="aditya">
-URL <input id="url" placeholder="https://example.com">
-<button onclick="add()">Add</button>
-<button onclick="remove()">Remove</button>
+<div class="sidebar">
+<h2>2A’s Monitoring</h2>
+<div class="menu">Dashboard</div>
+<div class="menu">Sites</div>
+<div class="menu">Incidents</div>
+<div class="menu">Admin</div>
 </div>
 
-<div class="container">
+<div class="main">
+
+<h1>Monitoring Dashboard</h1>
+
+<div class="cards">
 <div class="card">
-<h3>UP</h3>
-<div id="up" class="list"></div>
+<div class="small">Global SLA</div>
+<h2 id="sla">-- %</h2>
 </div>
 
 <div class="card">
-<h3>DOWN</h3>
-<div id="down" class="list"></div>
+<div class="small">Total Sites</div>
+<h2 id="total">0</h2>
+</div>
+
+<div class="card">
+<div class="small">Down</div>
+<h2 id="downCount">0</h2>
+</div>
+
+<div class="card">
+<div class="small">Avg Latency</div>
+<h2 id="lat">-- ms</h2>
 </div>
 </div>
 
-<div class="section card">
-<h3>World Latency Map</h3>
+<div class="grid">
+
+<div class="card">
+<h3>Sites Status</h3>
+<div id="sites"></div>
+</div>
+
+<div class="card">
+<h3>World Latency</h3>
 <div id="latency"></div>
 </div>
 
-<div class="section card">
-<h3>Response Graph</h3>
-<canvas id="chart" height="100"></canvas>
 </div>
 
 <div class="section card">
-<h3>Incidents Timeline</h3>
+<h3>Response Time</h3>
+<canvas id="chart" height="80"></canvas>
+</div>
+
+<div class="section card">
+<h3>Incidents</h3>
 <div id="incidents"></div>
 </div>
 
+</div>
+
 <script>
+
 let chart;
 
 async function load(){
- const user=document.getElementById("user").value||"demo";
- const res=await fetch("/api/"+user);
+ const res=await fetch("/api/demo");
  const data=await res.json();
 
- const up=document.getElementById("up");
- const down=document.getElementById("down");
- up.innerHTML=""; down.innerHTML="";
+ document.getElementById("total").innerText=data.length;
+
+ let down=0;
+ let slaSum=0;
+ let latSum=0;
+ let latCount=0;
+
+ const box=document.getElementById("sites");
+ box.innerHTML="";
 
  data.forEach(s=>{
-  const el=`<div class="card ${s.status}" onclick="show('${s.url}','${user}')">
-  ${s.url}
-  <div class="small">SLA: ${s.sla||0}%</div>
-  </div>`;
-  if(s.status==="up") up.innerHTML+=el;
-  else down.innerHTML+=el;
+  if(s.status==="down") down++;
+
+  if(s.sla) slaSum+=parseFloat(s.sla);
+  if(s.rt){latSum+=s.rt; latCount++;}
+
+  box.innerHTML+=`
+   <div class="status ${s.status}">
+    ${s.url}
+    <div class="small">SLA ${s.sla||0}%</div>
+   </div>
+  `;
  });
+
+ document.getElementById("downCount").innerText=down;
+ document.getElementById("sla").innerText=
+  data.length?(slaSum/data.length).toFixed(2):0;
+
+ document.getElementById("lat").innerText=
+  latCount?Math.round(latSum/latCount):0;
+
 }
+
 setInterval(load,3000);
 
-async function show(url,user){
- const res=await fetch("/api/"+user);
- const data=await res.json();
- const s=data.find(x=>x.url===url);
- if(!s) return;
-
- const labels=s.history.map(h=>new Date(h.t).toLocaleTimeString());
- const rt=s.history.map(h=>h.rt||0);
-
- if(chart) chart.destroy();
- chart=new Chart(document.getElementById("chart"),{
-  type:"line",
-  data:{labels,datasets:[{label:url,data:rt}]}
- });
-
- // incidents
- const inc=document.getElementById("incidents");
- inc.innerHTML="";
- (s.incidents||[]).forEach(i=>{
-  inc.innerHTML+=`<div class="small">DOWN at ${new Date(i.t).toLocaleTimeString()}</div>`;
- });
-}
-
-async function add(){
- const user=document.getElementById("user").value||"demo";
- const url=document.getElementById("url").value;
- await fetch("/api/"+user+"/add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
-}
-
-async function remove(){
- const user=document.getElementById("user").value||"demo";
- const url=document.getElementById("url").value;
- await fetch("/api/"+user+"/remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
-}
-
-// latency
 async function latency(){
  const res=await fetch("/api/latency");
  const data=await res.json();
+
  const box=document.getElementById("latency");
  box.innerHTML="";
+
  data.forEach(r=>{
-  box.innerHTML+=`<div>${r.region}: ${r.latency||"down"} ms</div>`;
+  box.innerHTML+=`
+   <div class="small">${r.region}: ${r.latency||"down"} ms</div>
+  `;
  });
 }
 setInterval(latency,5000);
 latency();
 
 </script>
+
 </body>
 </html>
