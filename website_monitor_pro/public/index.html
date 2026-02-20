@@ -1,95 +1,132 @@
-
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Website Monitor Pro</title>
+<title>AI Website Monitor</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body{font-family:Arial;background:#0f172a;color:white;margin:0}
-header{padding:15px;text-align:center;background:#020617}
-.container{display:flex;justify-content:space-around;padding:20px}
-.column{width:45%}
-.card{background:#020617;margin:10px;padding:10px;border-radius:8px}
-.up{border-left:5px solid #22c55e}
-.down{border-left:5px solid #ef4444}
-input,button{padding:8px;margin:5px}
-canvas{background:white;border-radius:8px}
+body{margin:0;font-family:Inter,Arial;background:#0b1220;color:white}
+header{padding:15px;background:#111827;font-size:20px}
+.container{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px}
+.card{background:#111827;border-radius:10px;padding:12px;margin:6px}
+.up{border-left:4px solid #22c55e}
+.down{border-left:4px solid #ef4444}
+input,button{padding:8px;border-radius:6px;border:none;margin:4px}
+button{background:#2563eb;color:white}
+.list{max-height:250px;overflow:auto}
+.small{font-size:12px;color:#9ca3af}
+.section{margin:20px}
 </style>
 </head>
 <body>
-<header><h1>🌐 Website Monitor Pro</h1></header>
 
-<div style="text-align:center">
-<input id="urlInput" placeholder="https://example.com">
-<button onclick="checkSite()">Check</button>
-<button onclick="addSite()">Add</button>
-<button onclick="removeSite()">Remove</button>
-<p id="checkResult"></p>
+<header>🌍 AI Website Monitor</header>
+
+<div class="section">
+User <input id="user" placeholder="aditya">
+URL <input id="url" placeholder="https://example.com">
+<button onclick="add()">Add</button>
+<button onclick="remove()">Remove</button>
 </div>
 
 <div class="container">
-<div class="column">
-<h2>UP</h2><div id="up"></div>
+<div class="card">
+<h3>UP</h3>
+<div id="up" class="list"></div>
 </div>
-<div class="column">
-<h2>DOWN</h2><div id="down"></div>
+
+<div class="card">
+<h3>DOWN</h3>
+<div id="down" class="list"></div>
 </div>
 </div>
 
-<div style="padding:20px">
-<h2>Response Time Graph</h2>
+<div class="section card">
+<h3>World Latency Map</h3>
+<div id="latency"></div>
+</div>
+
+<div class="section card">
+<h3>Response Graph</h3>
 <canvas id="chart" height="100"></canvas>
-<p id="uptime"></p>
+</div>
+
+<div class="section card">
+<h3>Incidents Timeline</h3>
+<div id="incidents"></div>
 </div>
 
 <script>
 let chart;
 
 async function load(){
- const res=await fetch("/api/status");
+ const user=document.getElementById("user").value||"demo";
+ const res=await fetch("/api/"+user);
  const data=await res.json();
+
  const up=document.getElementById("up");
  const down=document.getElementById("down");
- up.innerHTML="";down.innerHTML="";
- data.up.forEach(s=>up.innerHTML+=`<div class="card up" onclick="show('${s.url}')">${s.url}</div>`);
- data.down.forEach(s=>down.innerHTML+=`<div class="card down" onclick="show('${s.url}')">${s.url}</div>`);
-}
-setInterval(load,500); load();
+ up.innerHTML=""; down.innerHTML="";
 
-async function show(url){
- const res=await fetch("/api/all");
- const sites=await res.json();
- const s=sites.find(x=>x.url===url);
+ data.forEach(s=>{
+  const el=`<div class="card ${s.status}" onclick="show('${s.url}','${user}')">
+  ${s.url}
+  <div class="small">SLA: ${s.sla||0}%</div>
+  </div>`;
+  if(s.status==="up") up.innerHTML+=el;
+  else down.innerHTML+=el;
+ });
+}
+setInterval(load,3000);
+
+async function show(url,user){
+ const res=await fetch("/api/"+user);
+ const data=await res.json();
+ const s=data.find(x=>x.url===url);
  if(!s) return;
+
  const labels=s.history.map(h=>new Date(h.t).toLocaleTimeString());
- const data=s.history.map(h=>h.rt||0);
+ const rt=s.history.map(h=>h.rt||0);
+
  if(chart) chart.destroy();
  chart=new Chart(document.getElementById("chart"),{
   type:"line",
-  data:{labels,datasets:[{label:url,data}]}
+  data:{labels,datasets:[{label:url,data:rt}]}
  });
- // uptime 24h
- const total=s.history.length;
- const up=s.history.filter(h=>h.status==="up").length;
- const pct= total? (up/total*100).toFixed(2):0;
- document.getElementById("uptime").innerText="24h uptime: "+pct+"%";
+
+ // incidents
+ const inc=document.getElementById("incidents");
+ inc.innerHTML="";
+ (s.incidents||[]).forEach(i=>{
+  inc.innerHTML+=`<div class="small">DOWN at ${new Date(i.t).toLocaleTimeString()}</div>`;
+ });
 }
 
-async function checkSite(){
- const url=document.getElementById("urlInput").value;
- const res=await fetch("/api/check?url="+url);
- const d=await res.json();
- document.getElementById("checkResult").innerText=JSON.stringify(d);
+async function add(){
+ const user=document.getElementById("user").value||"demo";
+ const url=document.getElementById("url").value;
+ await fetch("/api/"+user+"/add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
 }
-async function addSite(){
- const url=document.getElementById("urlInput").value;
- await fetch("/api/add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+
+async function remove(){
+ const user=document.getElementById("user").value||"demo";
+ const url=document.getElementById("url").value;
+ await fetch("/api/"+user+"/remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
 }
-async function removeSite(){
- const url=document.getElementById("urlInput").value;
- await fetch("/api/remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+
+// latency
+async function latency(){
+ const res=await fetch("/api/latency");
+ const data=await res.json();
+ const box=document.getElementById("latency");
+ box.innerHTML="";
+ data.forEach(r=>{
+  box.innerHTML+=`<div>${r.region}: ${r.latency||"down"} ms</div>`;
+ });
 }
+setInterval(latency,5000);
+latency();
+
 </script>
 </body>
 </html>
