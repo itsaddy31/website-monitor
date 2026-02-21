@@ -6,24 +6,45 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{margin:0;font-family:Inter,Arial;background:#0B1220;color:white;display:flex}
-.sidebar{width:220px;background:#111827;height:100vh;padding:20px}
-.logo{font-size:18px;margin-bottom:20px}
-.menu{padding:10px;color:#9CA3AF;cursor:pointer}
-.menu:hover{color:white}
-.active{color:white;background:#1F2937;border-radius:6px}
+:root{
+--bg:#0B1220;
+--panel:#111827;
+--panel2:#0F172A;
+--text:#E5E7EB;
+--muted:#9CA3AF;
+--accent:#2563EB;
+--up:#22C55E;
+--down:#EF4444;
+--border:#1F2937;
+}
 
-.main{flex:1;padding:20px}
+body{margin:0;font-family:Inter,Arial;background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh}
+.topbar{height:55px;background:var(--panel);display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border)}
+.layout{display:flex;flex:1}
 
-.card{background:#111827;border-radius:10px;padding:15px;margin-bottom:15px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.sidebar{width:230px;background:var(--panel2);border-right:1px solid var(--border);padding:15px}
+.navItem{padding:10px;border-radius:8px;cursor:pointer;color:var(--muted);margin-bottom:4px}
+.navItem:hover{background:#1F2937;color:white}
 
-input,button{padding:8px;border:none;border-radius:6px;margin:4px}
-button{background:#2563EB;color:white}
+.main{flex:1;padding:20px;overflow:auto}
+.panel{background:var(--panel);border-radius:12px;padding:15px;border:1px solid var(--border);margin-bottom:20px}
 
-.status{padding:8px;border-radius:6px;margin:5px 0}
-.up{background:#052e1c}
-.down{background:#3b0a0a}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{padding:10px;border-bottom:1px solid var(--border)}
+.table tr:hover{background:#1F2937}
+
+.badgeUp{color:var(--up)}
+.badgeDown{color:var(--down)}
+
+.kpiGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:15px;margin-bottom:20px}
+.kpi{background:var(--panel);padding:15px;border-radius:12px;border:1px solid var(--border)}
+
+input,button{padding:8px;border-radius:8px;border:none;margin:4px}
+button{background:var(--accent);color:white;cursor:pointer}
+
+.alert{padding:10px;border-radius:8px;margin-bottom:10px}
+.alertDown{background:#3b0a0a}
+.alertOk{background:#052e1c}
 
 .hidden{display:none}
 </style>
@@ -31,168 +52,283 @@ button{background:#2563EB;color:white}
 
 <body>
 
+<div class="topbar">
+<div>2A’s Monitoring Solution</div>
+<div id="alert"></div>
+</div>
+
+<div class="layout">
+
 <div class="sidebar">
-<div class="logo">2A’s Monitoring</div>
-<div class="menu active" onclick="showPage('dashboard')">Dashboard</div>
-<div class="menu" onclick="showPage('sites')">Sites</div>
-<div class="menu" onclick="showPage('incidents')">Incidents</div>
-<div class="menu" onclick="showPage('admin')">Admin</div>
+<div class="navItem" onclick="nav('dash')">Dashboard</div>
+<div class="navItem" onclick="nav('sites')">Sites</div>
+<div class="navItem" onclick="nav('details')">Details</div>
+<div class="navItem" onclick="nav('inc')">Incidents</div>
 </div>
 
 <div class="main">
 
-<!-- LOGIN -->
-<div id="loginPage">
-<h2>Login</h2>
-<input id="user" placeholder="username">
-<button onclick="login()">Enter</button>
+<!-- DASH -->
+<div id="dashPage">
+
+<div class="kpiGrid">
+<div class="kpi">Sites: <b id="total"></b></div>
+<div class="kpi">Down: <b id="down"></b></div>
+<div class="kpi">Avg SLA: <b id="sla"></b>%</div>
+<div class="kpi">Latency: <b id="lat"></b> ms</div>
+
+<div class="kpi">
+<div>Global Uptime</div>
+<canvas id="uptimeGauge" width="220" height="160"></canvas>
+</div>
 </div>
 
-<!-- DASHBOARD -->
-<div id="dashboardPage" class="hidden">
-<h2>Dashboard</h2>
-<div class="grid">
-<div class="card">
-<h3>Sites</h3>
-<div id="sites"></div>
+<div class="panel">
+<input id="search" placeholder="Search site..." oninput="load()">
+<table class="table">
+<thead><tr><th>Site</th><th>Status</th><th>SLA</th></tr></thead>
+<tbody id="table"></tbody>
+</table>
 </div>
-<div class="card">
-<h3>Latency</h3>
-<div id="latency"></div>
+
+<div class="panel">
+<h3>Region Latency</h3>
+<div id="regions"></div>
 </div>
+
+<div class="panel">
+<h3>Status Distribution</h3>
+<canvas id="pie"></canvas>
 </div>
-<div class="card">
-<h3>Response</h3>
-<canvas id="chart"></canvas>
-</div>
+
 </div>
 
 <!-- SITES -->
 <div id="sitesPage" class="hidden">
-<h2>Sites</h2>
+<div class="panel">
 <input id="url" placeholder="https://example.com">
 <button onclick="addSite()">Add</button>
 <button onclick="removeSite()">Remove</button>
-<div id="sitesList"></div>
+</div>
+<div id="siteList"></div>
+</div>
+
+<!-- DETAILS -->
+<div id="detailsPage" class="hidden">
+<div class="panel">
+<h3 id="detailTitle">Site Details</h3>
+<div id="detailStats"></div>
+<canvas id="line"></canvas>
+<div id="detailInc"></div>
+</div>
 </div>
 
 <!-- INCIDENTS -->
-<div id="incidentsPage" class="hidden">
-<h2>Incidents</h2>
+<div id="incPage" class="hidden">
+<div class="panel">
+<h3>Incidents</h3>
 <div id="incidents"></div>
 </div>
-
-<!-- ADMIN -->
-<div id="adminPage" class="hidden">
-<h2>Admin Panel</h2>
-<div id="adminStats"></div>
 </div>
 
+</div>
 </div>
 
 <script>
 
-let currentUser="demo";
-let chart;
+let pie,line;
+let user="demo";
+let selectedSite=null;
+let gaugeValue=0;
 
-// ---------- LOGIN ----------
-function login(){
- currentUser=document.getElementById("user").value||"demo";
- document.getElementById("loginPage").classList.add("hidden");
- showPage("dashboard");
+// NAV
+function nav(p){
+["dash","sites","details","inc"].forEach(id=>{
+document.getElementById(id+"Page").classList.add("hidden");
+});
+document.getElementById(p+"Page").classList.remove("hidden");
 }
 
-// ---------- NAV ----------
-function showPage(p){
- ["dashboard","sites","incidents","admin"].forEach(id=>{
-  document.getElementById(id+"Page").classList.add("hidden");
- });
- document.getElementById(p+"Page").classList.remove("hidden");
+// ALERT
+function alertMsg(text,type){
+const a=document.getElementById("alert");
+a.innerHTML=`<div class="alert ${type}">${text}</div>`;
+setTimeout(()=>a.innerHTML="",3000);
 }
 
-// ---------- LOAD DASH ----------
-async function loadDash(){
- const res=await fetch("/api/"+currentUser);
- const data=await res.json();
+// ===== ENTERPRISE GAUGE =====
+function drawEnterpriseGauge(targetValue){
+const canvas=document.getElementById("uptimeGauge");
+if(!canvas) return;
+const ctx=canvas.getContext("2d");
+const W=canvas.width;
+const H=canvas.height;
+const cx=W/2;
+const cy=H*0.9;
+const r=H*0.75;
 
- const box=document.getElementById("sites");
- box.innerHTML="";
+ctx.clearRect(0,0,W,H);
 
- data.forEach(s=>{
-  box.innerHTML+=`<div class="status ${s.status}">${s.url}</div>`;
- });
+gaugeValue += (targetValue-gaugeValue)*0.08;
 
- // chart
- if(data[0] && data[0].history){
-  const labels=data[0].history.map(h=>new Date(h.t).toLocaleTimeString());
-  const rt=data[0].history.map(h=>h.rt||0);
-  if(chart) chart.destroy();
-  chart=new Chart(document.getElementById("chart"),{
-   type:"line",
-   data:{labels,datasets:[{label:data[0].url,data:rt}]}
-  });
- }
+function arc(start,end,color,width=12){
+ctx.beginPath();
+ctx.strokeStyle=color;
+ctx.lineWidth=width;
+ctx.lineCap="round";
+ctx.arc(cx,cy,r,start,end);
+ctx.stroke();
 }
 
-// ---------- LATENCY ----------
-async function loadLatency(){
- const res=await fetch("/api/latency");
- const data=await res.json();
- const box=document.getElementById("latency");
- box.innerHTML="";
- data.forEach(r=>{
-  box.innerHTML+=`${r.region}: ${r.latency||"down"} ms<br>`;
- });
+// zones
+arc(Math.PI,Math.PI*1.2,"#EF4444");
+arc(Math.PI*1.2,Math.PI*1.5,"#EAB308");
+arc(Math.PI*1.5,Math.PI*2,"#22C55E");
+
+// target 99.9
+const tAngle=Math.PI+(99.9/100)*Math.PI;
+const tx=cx+Math.cos(tAngle)*r;
+const ty=cy+Math.sin(tAngle)*r;
+ctx.beginPath();
+ctx.arc(tx,ty,3,0,Math.PI*2);
+ctx.fillStyle="#FFFFFF";
+ctx.fill();
+
+// needle
+const angle=Math.PI+(gaugeValue/100)*Math.PI;
+const nx=cx+Math.cos(angle)*r*0.85;
+const ny=cy+Math.sin(angle)*r*0.85;
+
+ctx.beginPath();
+ctx.moveTo(cx,cy);
+ctx.lineTo(nx,ny);
+ctx.strokeStyle="#E5E7EB";
+ctx.lineWidth=3;
+ctx.stroke();
+
+ctx.beginPath();
+ctx.arc(cx,cy,5,0,Math.PI*2);
+ctx.fillStyle="#E5E7EB";
+ctx.fill();
+
+ctx.font="20px Inter";
+ctx.fillStyle="#E5E7EB";
+ctx.textAlign="center";
+ctx.fillText(gaugeValue.toFixed(2)+"%",cx,cy-20);
+
+ctx.font="11px Inter";
+ctx.fillStyle="#9CA3AF";
+ctx.fillText("Uptime SLA",cx,cy-5);
+
+requestAnimationFrame(()=>drawEnterpriseGauge(targetValue));
 }
 
-// ---------- SITES ----------
+// LOAD
+async function load(){
+const res=await fetch("/api/"+user);
+let data=await res.json();
+
+const search=document.getElementById("search").value?.toLowerCase()||"";
+if(search) data=data.filter(s=>s.url.toLowerCase().includes(search));
+
+let down=0,sla=0,lat=0,latC=0;
+let tableHTML="",incHTML="",listHTML="";
+
+data.forEach(s=>{
+if(s.status==="down"){down++;alertMsg("Site DOWN: "+s.url,"alertDown")}
+if(s.sla)sla+=parseFloat(s.sla);
+if(s.rt){lat+=s.rt;latC++;}
+
+tableHTML+=`
+<tr onclick="openDetails('${s.url}')">
+<td>${s.url}</td>
+<td class="${s.status==='up'?'badgeUp':'badgeDown'}">${s.status}</td>
+<td>${s.sla||0}%</td>
+</tr>`;
+
+listHTML+=`${s.url}<br>`;
+
+(s.incidents||[]).forEach(i=>{
+incHTML+=`DOWN: ${s.url} at ${new Date(i.t).toLocaleString()}<br>`;
+});
+});
+
+document.getElementById("total").innerText=data.length;
+document.getElementById("down").innerText=down;
+const avgSla=data.length?(sla/data.length):0;
+document.getElementById("sla").innerText=avgSla.toFixed(2);
+document.getElementById("lat").innerText=latC?Math.round(lat/latC):0;
+
+document.getElementById("table").innerHTML=tableHTML;
+document.getElementById("siteList").innerHTML=listHTML;
+document.getElementById("incidents").innerHTML=incHTML;
+
+// gauge
+drawEnterpriseGauge(avgSla);
+
+// pie
+if(pie)pie.destroy();
+pie=new Chart(document.getElementById("pie"),{
+type:"doughnut",
+data:{labels:["UP","DOWN"],datasets:[{data:[data.length-down,down]}]}
+});
+
+loadRegions();
+}
+
+async function loadRegions(){
+const res=await fetch("/api/latency");
+const data=await res.json();
+let html="";
+data.forEach(r=>html+=`${r.region}: ${r.latency||"down"} ms<br>`);
+document.getElementById("regions").innerHTML=html;
+}
+
+function openDetails(url){
+selectedSite=url;
+nav("details");
+loadDetails();
+}
+
+async function loadDetails(){
+const res=await fetch("/api/"+user);
+const data=await res.json();
+const s=data.find(x=>x.url===selectedSite);
+if(!s)return;
+
+document.getElementById("detailTitle").innerText=s.url;
+document.getElementById("detailStats").innerHTML=
+`Status: ${s.status}<br>SLA: ${s.sla}%<br>Latency: ${s.rt||0} ms`;
+
+const labels=s.history.map(h=>new Date(h.t).toLocaleTimeString());
+const rt=s.history.map(h=>h.rt||0);
+
+if(line)line.destroy();
+line=new Chart(document.getElementById("line"),{
+type:"line",
+data:{labels,datasets:[{label:s.url,data:rt}]}
+});
+
+let inc="";
+(s.incidents||[]).forEach(i=>{
+inc+=`DOWN at ${new Date(i.t).toLocaleString()}<br>`;
+});
+document.getElementById("detailInc").innerHTML=inc;
+}
+
 async function addSite(){
- const url=document.getElementById("url").value;
- await fetch("/api/"+currentUser+"/add",{
-  method:"POST",
-  headers:{"Content-Type":"application/json"},
-  body:JSON.stringify({url})
- });
+const url=document.getElementById("url").value;
+await fetch("/api/"+user+"/add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+alertMsg("Site added","alertOk");
 }
 
 async function removeSite(){
- const url=document.getElementById("url").value;
- await fetch("/api/"+currentUser+"/remove",{
-  method:"POST",
-  headers:{"Content-Type":"application/json"},
-  body:JSON.stringify({url})
- });
+const url=document.getElementById("url").value;
+await fetch("/api/"+user+"/remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+alertMsg("Site removed","alertOk");
 }
 
-// ---------- INCIDENTS ----------
-async function loadIncidents(){
- const res=await fetch("/api/"+currentUser);
- const data=await res.json();
- const box=document.getElementById("incidents");
- box.innerHTML="";
- data.forEach(s=>{
-  (s.incidents||[]).forEach(i=>{
-   box.innerHTML+=`DOWN: ${s.url} at ${new Date(i.t).toLocaleTimeString()}<br>`;
-  });
- });
-}
-
-// ---------- ADMIN ----------
-async function loadAdmin(){
- const res=await fetch("/api/"+currentUser);
- const data=await res.json();
- document.getElementById("adminStats").innerText=
-  "Total Sites: "+data.length;
-}
-
-// ---------- LOOP ----------
-setInterval(()=>{
- loadDash();
- loadLatency();
- loadIncidents();
- loadAdmin();
-},3000);
-
+setInterval(load,4000);
 </script>
 
 </body>
