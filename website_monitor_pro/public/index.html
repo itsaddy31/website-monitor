@@ -6,191 +6,192 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{
- margin:0;
- font-family:Inter,Arial;
- background:#0B1220;
- color:white;
- display:flex;
-}
-
-.sidebar{
- width:230px;
- background:#111827;
- height:100vh;
- padding:20px;
-}
-
-.sidebar h2{
- margin:0 0 20px 0;
- font-size:18px;
-}
-
-.menu{
- margin:12px 0;
- cursor:pointer;
- color:#9CA3AF;
-}
+body{margin:0;font-family:Inter,Arial;background:#0B1220;color:white;display:flex}
+.sidebar{width:220px;background:#111827;height:100vh;padding:20px}
+.logo{font-size:18px;margin-bottom:20px}
+.menu{padding:10px;color:#9CA3AF;cursor:pointer}
 .menu:hover{color:white}
+.active{color:white;background:#1F2937;border-radius:6px}
 
-.main{
- flex:1;
- padding:20px;
-}
+.main{flex:1;padding:20px}
 
-.cards{
- display:grid;
- grid-template-columns:repeat(4,1fr);
- gap:15px;
- margin-bottom:20px;
-}
+.card{background:#111827;border-radius:10px;padding:15px;margin-bottom:15px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
 
-.card{
- background:#111827;
- border-radius:10px;
- padding:15px;
-}
+input,button{padding:8px;border:none;border-radius:6px;margin:4px}
+button{background:#2563EB;color:white}
 
-.grid{
- display:grid;
- grid-template-columns:1fr 1fr;
- gap:20px;
-}
+.status{padding:8px;border-radius:6px;margin:5px 0}
+.up{background:#052e1c}
+.down{background:#3b0a0a}
 
-.status{
- padding:10px;
- border-radius:6px;
- margin:5px 0;
-}
-.up{background:#052e1c;border-left:4px solid #22C55E}
-.down{background:#3b0a0a;border-left:4px solid #EF4444}
-
-.small{color:#9CA3AF;font-size:12px}
-.section{margin-bottom:20px}
-
+.hidden{display:none}
 </style>
 </head>
 
 <body>
 
 <div class="sidebar">
-<h2>2A’s Monitoring</h2>
-<div class="menu">Dashboard</div>
-<div class="menu">Sites</div>
-<div class="menu">Incidents</div>
-<div class="menu">Admin</div>
+<div class="logo">2A’s Monitoring</div>
+<div class="menu active" onclick="showPage('dashboard')">Dashboard</div>
+<div class="menu" onclick="showPage('sites')">Sites</div>
+<div class="menu" onclick="showPage('incidents')">Incidents</div>
+<div class="menu" onclick="showPage('admin')">Admin</div>
 </div>
 
 <div class="main">
 
-<h1>Monitoring Dashboard</h1>
-
-<div class="cards">
-<div class="card">
-<div class="small">Global SLA</div>
-<h2 id="sla">-- %</h2>
+<!-- LOGIN -->
+<div id="loginPage">
+<h2>Login</h2>
+<input id="user" placeholder="username">
+<button onclick="login()">Enter</button>
 </div>
 
-<div class="card">
-<div class="small">Total Sites</div>
-<h2 id="total">0</h2>
-</div>
-
-<div class="card">
-<div class="small">Down</div>
-<h2 id="downCount">0</h2>
-</div>
-
-<div class="card">
-<div class="small">Avg Latency</div>
-<h2 id="lat">-- ms</h2>
-</div>
-</div>
-
+<!-- DASHBOARD -->
+<div id="dashboardPage" class="hidden">
+<h2>Dashboard</h2>
 <div class="grid">
-
 <div class="card">
-<h3>Sites Status</h3>
+<h3>Sites</h3>
 <div id="sites"></div>
 </div>
-
 <div class="card">
-<h3>World Latency</h3>
+<h3>Latency</h3>
 <div id="latency"></div>
 </div>
-
+</div>
+<div class="card">
+<h3>Response</h3>
+<canvas id="chart"></canvas>
+</div>
 </div>
 
-<div class="section card">
-<h3>Response Time</h3>
-<canvas id="chart" height="80"></canvas>
+<!-- SITES -->
+<div id="sitesPage" class="hidden">
+<h2>Sites</h2>
+<input id="url" placeholder="https://example.com">
+<button onclick="addSite()">Add</button>
+<button onclick="removeSite()">Remove</button>
+<div id="sitesList"></div>
 </div>
 
-<div class="section card">
-<h3>Incidents</h3>
+<!-- INCIDENTS -->
+<div id="incidentsPage" class="hidden">
+<h2>Incidents</h2>
 <div id="incidents"></div>
+</div>
+
+<!-- ADMIN -->
+<div id="adminPage" class="hidden">
+<h2>Admin Panel</h2>
+<div id="adminStats"></div>
 </div>
 
 </div>
 
 <script>
 
+let currentUser="demo";
 let chart;
 
-async function load(){
- const res=await fetch("/api/demo");
+// ---------- LOGIN ----------
+function login(){
+ currentUser=document.getElementById("user").value||"demo";
+ document.getElementById("loginPage").classList.add("hidden");
+ showPage("dashboard");
+}
+
+// ---------- NAV ----------
+function showPage(p){
+ ["dashboard","sites","incidents","admin"].forEach(id=>{
+  document.getElementById(id+"Page").classList.add("hidden");
+ });
+ document.getElementById(p+"Page").classList.remove("hidden");
+}
+
+// ---------- LOAD DASH ----------
+async function loadDash(){
+ const res=await fetch("/api/"+currentUser);
  const data=await res.json();
-
- document.getElementById("total").innerText=data.length;
-
- let down=0;
- let slaSum=0;
- let latSum=0;
- let latCount=0;
 
  const box=document.getElementById("sites");
  box.innerHTML="";
 
  data.forEach(s=>{
-  if(s.status==="down") down++;
-
-  if(s.sla) slaSum+=parseFloat(s.sla);
-  if(s.rt){latSum+=s.rt; latCount++;}
-
-  box.innerHTML+=`
-   <div class="status ${s.status}">
-    ${s.url}
-    <div class="small">SLA ${s.sla||0}%</div>
-   </div>
-  `;
+  box.innerHTML+=`<div class="status ${s.status}">${s.url}</div>`;
  });
 
- document.getElementById("downCount").innerText=down;
- document.getElementById("sla").innerText=
-  data.length?(slaSum/data.length).toFixed(2):0;
-
- document.getElementById("lat").innerText=
-  latCount?Math.round(latSum/latCount):0;
-
+ // chart
+ if(data[0] && data[0].history){
+  const labels=data[0].history.map(h=>new Date(h.t).toLocaleTimeString());
+  const rt=data[0].history.map(h=>h.rt||0);
+  if(chart) chart.destroy();
+  chart=new Chart(document.getElementById("chart"),{
+   type:"line",
+   data:{labels,datasets:[{label:data[0].url,data:rt}]}
+  });
+ }
 }
 
-setInterval(load,3000);
-
-async function latency(){
+// ---------- LATENCY ----------
+async function loadLatency(){
  const res=await fetch("/api/latency");
  const data=await res.json();
-
  const box=document.getElementById("latency");
  box.innerHTML="";
-
  data.forEach(r=>{
-  box.innerHTML+=`
-   <div class="small">${r.region}: ${r.latency||"down"} ms</div>
-  `;
+  box.innerHTML+=`${r.region}: ${r.latency||"down"} ms<br>`;
  });
 }
-setInterval(latency,5000);
-latency();
+
+// ---------- SITES ----------
+async function addSite(){
+ const url=document.getElementById("url").value;
+ await fetch("/api/"+currentUser+"/add",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({url})
+ });
+}
+
+async function removeSite(){
+ const url=document.getElementById("url").value;
+ await fetch("/api/"+currentUser+"/remove",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({url})
+ });
+}
+
+// ---------- INCIDENTS ----------
+async function loadIncidents(){
+ const res=await fetch("/api/"+currentUser);
+ const data=await res.json();
+ const box=document.getElementById("incidents");
+ box.innerHTML="";
+ data.forEach(s=>{
+  (s.incidents||[]).forEach(i=>{
+   box.innerHTML+=`DOWN: ${s.url} at ${new Date(i.t).toLocaleTimeString()}<br>`;
+  });
+ });
+}
+
+// ---------- ADMIN ----------
+async function loadAdmin(){
+ const res=await fetch("/api/"+currentUser);
+ const data=await res.json();
+ document.getElementById("adminStats").innerText=
+  "Total Sites: "+data.length;
+}
+
+// ---------- LOOP ----------
+setInterval(()=>{
+ loadDash();
+ loadLatency();
+ loadIncidents();
+ loadAdmin();
+},3000);
 
 </script>
 
