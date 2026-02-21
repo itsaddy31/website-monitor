@@ -1,34 +1,16 @@
-{
-  "sites": [
-    {
-      "url": "https://google.com",
-      "status": "unknown",
-      "lastResponse": null,
-      "history": []
-    },
-    {
-      "url": "https://openai.com",
-      "status": "unknown",
-      "lastResponse": null,
-      "history": []
-    },
-    {
-      "url": "https://amazon.com",
-      "status": "unknown",
-      "lastResponse": null,
-      "history": []
-    },
-    {
-      "url": "https://github.com",
-      "status": "unknown",
-      "lastResponse": null,
-      "history": []
-    },
-    {
-      "url": "https://cloudflare.com",
-      "status": "unknown",
-      "lastResponse": null,
-      "history": []
-    }
-  ]
-}
+[
+  {
+    "name": "Main Website",
+    "url": "https://example.com",
+    "status": "UP",
+    "uptime": 99.9,
+    "response": 120
+  },
+  {
+    "name": "API Server",
+    "url": "https://api.example.com",
+    "status": "DOWN",
+    "uptime": 98.7,
+    "response": 0
+  }
+]
