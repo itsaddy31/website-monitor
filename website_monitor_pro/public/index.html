@@ -1,335 +1,95 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>2A’s Monitoring Solution</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-:root{
---bg:#0B1220;
---panel:#111827;
---panel2:#0F172A;
---text:#E5E7EB;
---muted:#9CA3AF;
---accent:#2563EB;
---up:#22C55E;
---down:#EF4444;
---border:#1F2937;
-}
-
-body{margin:0;font-family:Inter,Arial;background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh}
-.topbar{height:55px;background:var(--panel);display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border)}
-.layout{display:flex;flex:1}
-
-.sidebar{width:230px;background:var(--panel2);border-right:1px solid var(--border);padding:15px}
-.navItem{padding:10px;border-radius:8px;cursor:pointer;color:var(--muted);margin-bottom:4px}
-.navItem:hover{background:#1F2937;color:white}
-
-.main{flex:1;padding:20px;overflow:auto}
-.panel{background:var(--panel);border-radius:12px;padding:15px;border:1px solid var(--border);margin-bottom:20px}
-
-.table{width:100%;border-collapse:collapse}
-.table th,.table td{padding:10px;border-bottom:1px solid var(--border)}
-.table tr:hover{background:#1F2937}
-
-.badgeUp{color:var(--up)}
-.badgeDown{color:var(--down)}
-
-.kpiGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:15px;margin-bottom:20px}
-.kpi{background:var(--panel);padding:15px;border-radius:12px;border:1px solid var(--border)}
-
-input,button{padding:8px;border-radius:8px;border:none;margin:4px}
-button{background:var(--accent);color:white;cursor:pointer}
-
-.alert{padding:10px;border-radius:8px;margin-bottom:10px}
-.alertDown{background:#3b0a0a}
-.alertOk{background:#052e1c}
-
-.hidden{display:none}
-</style>
+  <title>2A's Monitoring</title>
+  <link rel="stylesheet" href="css/app.css">
 </head>
 
 <body>
+<div class="app">
 
-<div class="topbar">
-<div>2A’s Monitoring Solution</div>
-<div id="alert"></div>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">2A's Monitoring</div>
+
+    <nav class="nav">
+      <a class="active">Dashboard</a>
+      <a>Monitors</a>
+      <a>Incidents</a>
+      <a>Reports</a>
+      <a>Status Pages</a>
+      <a>Settings</a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+
+    <div class="topbar">
+      <input class="search" placeholder="Search monitor">
+      <div class="user">Aditya • Admin</div>
+    </div>
+
+    <div class="content">
+
+      <!-- Cards -->
+      <div class="grid">
+        <div class="card">
+          <h3>Global Uptime</h3>
+          <div class="value">99.982%</div>
+        </div>
+
+        <div class="card">
+          <h3>Active Monitors</h3>
+          <div class="value">128</div>
+        </div>
+
+        <div class="card">
+          <h3>Incidents (24h)</h3>
+          <div class="value">2</div>
+        </div>
+
+        <div class="card">
+          <h3>Avg Response</h3>
+          <div class="value">142 ms</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="section-title">Monitors</div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>URL</th>
+            <th>Status</th>
+            <th>Uptime</th>
+            <th>Response</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Main Website</td>
+            <td>https://example.com</td>
+            <td class="status up">UP</td>
+            <td>99.99%</td>
+            <td>120 ms</td>
+          </tr>
+
+          <tr>
+            <td>API Server</td>
+            <td>https://api.example.com</td>
+            <td class="status down">DOWN</td>
+            <td>98.7%</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+
 </div>
-
-<div class="layout">
-
-<div class="sidebar">
-<div class="navItem" onclick="nav('dash')">Dashboard</div>
-<div class="navItem" onclick="nav('sites')">Sites</div>
-<div class="navItem" onclick="nav('details')">Details</div>
-<div class="navItem" onclick="nav('inc')">Incidents</div>
-</div>
-
-<div class="main">
-
-<!-- DASH -->
-<div id="dashPage">
-
-<div class="kpiGrid">
-<div class="kpi">Sites: <b id="total"></b></div>
-<div class="kpi">Down: <b id="down"></b></div>
-<div class="kpi">Avg SLA: <b id="sla"></b>%</div>
-<div class="kpi">Latency: <b id="lat"></b> ms</div>
-
-<div class="kpi">
-<div>Global Uptime</div>
-<canvas id="uptimeGauge" width="220" height="160"></canvas>
-</div>
-</div>
-
-<div class="panel">
-<input id="search" placeholder="Search site..." oninput="load()">
-<table class="table">
-<thead><tr><th>Site</th><th>Status</th><th>SLA</th></tr></thead>
-<tbody id="table"></tbody>
-</table>
-</div>
-
-<div class="panel">
-<h3>Region Latency</h3>
-<div id="regions"></div>
-</div>
-
-<div class="panel">
-<h3>Status Distribution</h3>
-<canvas id="pie"></canvas>
-</div>
-
-</div>
-
-<!-- SITES -->
-<div id="sitesPage" class="hidden">
-<div class="panel">
-<input id="url" placeholder="https://example.com">
-<button onclick="addSite()">Add</button>
-<button onclick="removeSite()">Remove</button>
-</div>
-<div id="siteList"></div>
-</div>
-
-<!-- DETAILS -->
-<div id="detailsPage" class="hidden">
-<div class="panel">
-<h3 id="detailTitle">Site Details</h3>
-<div id="detailStats"></div>
-<canvas id="line"></canvas>
-<div id="detailInc"></div>
-</div>
-</div>
-
-<!-- INCIDENTS -->
-<div id="incPage" class="hidden">
-<div class="panel">
-<h3>Incidents</h3>
-<div id="incidents"></div>
-</div>
-</div>
-
-</div>
-</div>
-
-<script>
-
-let pie,line;
-let user="demo";
-let selectedSite=null;
-let gaugeValue=0;
-
-// NAV
-function nav(p){
-["dash","sites","details","inc"].forEach(id=>{
-document.getElementById(id+"Page").classList.add("hidden");
-});
-document.getElementById(p+"Page").classList.remove("hidden");
-}
-
-// ALERT
-function alertMsg(text,type){
-const a=document.getElementById("alert");
-a.innerHTML=`<div class="alert ${type}">${text}</div>`;
-setTimeout(()=>a.innerHTML="",3000);
-}
-
-// ===== ENTERPRISE GAUGE =====
-function drawEnterpriseGauge(targetValue){
-const canvas=document.getElementById("uptimeGauge");
-if(!canvas) return;
-const ctx=canvas.getContext("2d");
-const W=canvas.width;
-const H=canvas.height;
-const cx=W/2;
-const cy=H*0.9;
-const r=H*0.75;
-
-ctx.clearRect(0,0,W,H);
-
-gaugeValue += (targetValue-gaugeValue)*0.08;
-
-function arc(start,end,color,width=12){
-ctx.beginPath();
-ctx.strokeStyle=color;
-ctx.lineWidth=width;
-ctx.lineCap="round";
-ctx.arc(cx,cy,r,start,end);
-ctx.stroke();
-}
-
-// zones
-arc(Math.PI,Math.PI*1.2,"#EF4444");
-arc(Math.PI*1.2,Math.PI*1.5,"#EAB308");
-arc(Math.PI*1.5,Math.PI*2,"#22C55E");
-
-// target 99.9
-const tAngle=Math.PI+(99.9/100)*Math.PI;
-const tx=cx+Math.cos(tAngle)*r;
-const ty=cy+Math.sin(tAngle)*r;
-ctx.beginPath();
-ctx.arc(tx,ty,3,0,Math.PI*2);
-ctx.fillStyle="#FFFFFF";
-ctx.fill();
-
-// needle
-const angle=Math.PI+(gaugeValue/100)*Math.PI;
-const nx=cx+Math.cos(angle)*r*0.85;
-const ny=cy+Math.sin(angle)*r*0.85;
-
-ctx.beginPath();
-ctx.moveTo(cx,cy);
-ctx.lineTo(nx,ny);
-ctx.strokeStyle="#E5E7EB";
-ctx.lineWidth=3;
-ctx.stroke();
-
-ctx.beginPath();
-ctx.arc(cx,cy,5,0,Math.PI*2);
-ctx.fillStyle="#E5E7EB";
-ctx.fill();
-
-ctx.font="20px Inter";
-ctx.fillStyle="#E5E7EB";
-ctx.textAlign="center";
-ctx.fillText(gaugeValue.toFixed(2)+"%",cx,cy-20);
-
-ctx.font="11px Inter";
-ctx.fillStyle="#9CA3AF";
-ctx.fillText("Uptime SLA",cx,cy-5);
-
-requestAnimationFrame(()=>drawEnterpriseGauge(targetValue));
-}
-
-// LOAD
-async function load(){
-const res=await fetch("/api/"+user);
-let data=await res.json();
-
-const search=document.getElementById("search").value?.toLowerCase()||"";
-if(search) data=data.filter(s=>s.url.toLowerCase().includes(search));
-
-let down=0,sla=0,lat=0,latC=0;
-let tableHTML="",incHTML="",listHTML="";
-
-data.forEach(s=>{
-if(s.status==="down"){down++;alertMsg("Site DOWN: "+s.url,"alertDown")}
-if(s.sla)sla+=parseFloat(s.sla);
-if(s.rt){lat+=s.rt;latC++;}
-
-tableHTML+=`
-<tr onclick="openDetails('${s.url}')">
-<td>${s.url}</td>
-<td class="${s.status==='up'?'badgeUp':'badgeDown'}">${s.status}</td>
-<td>${s.sla||0}%</td>
-</tr>`;
-
-listHTML+=`${s.url}<br>`;
-
-(s.incidents||[]).forEach(i=>{
-incHTML+=`DOWN: ${s.url} at ${new Date(i.t).toLocaleString()}<br>`;
-});
-});
-
-document.getElementById("total").innerText=data.length;
-document.getElementById("down").innerText=down;
-const avgSla=data.length?(sla/data.length):0;
-document.getElementById("sla").innerText=avgSla.toFixed(2);
-document.getElementById("lat").innerText=latC?Math.round(lat/latC):0;
-
-document.getElementById("table").innerHTML=tableHTML;
-document.getElementById("siteList").innerHTML=listHTML;
-document.getElementById("incidents").innerHTML=incHTML;
-
-// gauge
-drawEnterpriseGauge(avgSla);
-
-// pie
-if(pie)pie.destroy();
-pie=new Chart(document.getElementById("pie"),{
-type:"doughnut",
-data:{labels:["UP","DOWN"],datasets:[{data:[data.length-down,down]}]}
-});
-
-loadRegions();
-}
-
-async function loadRegions(){
-const res=await fetch("/api/latency");
-const data=await res.json();
-let html="";
-data.forEach(r=>html+=`${r.region}: ${r.latency||"down"} ms<br>`);
-document.getElementById("regions").innerHTML=html;
-}
-
-function openDetails(url){
-selectedSite=url;
-nav("details");
-loadDetails();
-}
-
-async function loadDetails(){
-const res=await fetch("/api/"+user);
-const data=await res.json();
-const s=data.find(x=>x.url===selectedSite);
-if(!s)return;
-
-document.getElementById("detailTitle").innerText=s.url;
-document.getElementById("detailStats").innerHTML=
-`Status: ${s.status}<br>SLA: ${s.sla}%<br>Latency: ${s.rt||0} ms`;
-
-const labels=s.history.map(h=>new Date(h.t).toLocaleTimeString());
-const rt=s.history.map(h=>h.rt||0);
-
-if(line)line.destroy();
-line=new Chart(document.getElementById("line"),{
-type:"line",
-data:{labels,datasets:[{label:s.url,data:rt}]}
-});
-
-let inc="";
-(s.incidents||[]).forEach(i=>{
-inc+=`DOWN at ${new Date(i.t).toLocaleString()}<br>`;
-});
-document.getElementById("detailInc").innerHTML=inc;
-}
-
-async function addSite(){
-const url=document.getElementById("url").value;
-await fetch("/api/"+user+"/add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
-alertMsg("Site added","alertOk");
-}
-
-async function removeSite(){
-const url=document.getElementById("url").value;
-await fetch("/api/"+user+"/remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
-alertMsg("Site removed","alertOk");
-}
-
-setInterval(load,4000);
-</script>
-
 </body>
 </html>
