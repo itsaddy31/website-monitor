@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>2A's Monitoring</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">2A's Monitoring</div>
+
+    <nav class="nav">
+      <a class="active">Dashboard</a>
+      <a>Monitors</a>
+      <a>Incidents</a>
+      <a>Reports</a>
+      <a>Status Pages</a>
+      <a>Settings</a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+
+    <div class="topbar">
+      <input class="search" placeholder="Search monitor">
+      <div class="user">Aditya • Admin</div>
+    </div>
+
+    <div class="content">
+
+      <!-- Cards -->
+      <div class="grid">
+        <div class="card">
+          <h3>Global Uptime</h3>
+          <div class="value" id="uptime">--</div>
+        </div>
+
+        <div class="card">
+          <h3>Active Monitors</h3>
+          <div class="value" id="active">--</div>
+        </div>
+
+        <div class="card">
+          <h3>Incidents (24h)</h3>
+          <div class="value">0</div>
+        </div>
+
+        <div class="card">
+          <h3>Avg Response</h3>
+          <div class="value" id="avg">-- ms</div>
+        </div>
+      </div>
+
+      <!-- Monitors Table -->
+      <div class="section-title">Monitors</div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>URL</th>
+            <th>Status</th>
+            <th>Uptime</th>
+            <th>Response</th>
+          </tr>
+        </thead>
+        <tbody id="monitorTable"></tbody>
+      </table>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+async function loadMonitors() {
+  const res = await fetch('/api/monitors');
+  const monitors = await res.json();
+
+  const tbody = document.getElementById('monitorTable');
+  tbody.innerHTML = '';
+
+  let active = 0;
+  let totalResponse = 0;
+
+  monitors.forEach(m => {
+    const statusClass = m.status === 'UP' ? 'up' : 'down';
+
+    if (m.status === 'UP') active++;
+    totalResponse += m.response || 0;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${m.name}</td>
+        <td>${m.url}</td>
+        <td class="status ${statusClass}">${m.status}</td>
+        <td>${m.uptime || '--'}%</td>
+        <td>${m.response || '--'} ms</td>
+      </tr>
+    `;
+  });
+
+  document.getElementById('active').innerText = active;
+  document.getElementById('avg').innerText =
+    monitors.length ? Math.round(totalResponse / monitors.length) : '--';
+
+  document.getElementById('uptime').innerText = '99.9';
+}
+
+loadMonitors();
+</script>
+
+</body>
+</html>
